@@ -1,0 +1,121 @@
+---
+title: "Final Project"
+author: "James Livingstone"
+date: "December 15, 2022"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+
+library(tidyverse)
+library(summarytools)
+library(Hmisc)  # for rcorr()
+library(car)    # for vif()
+library(leaps)  # for regsubsets()
+
+heart = read.csv('heart.csv')
+
+
+
+```
+
+
+
+# Summary Statistics
+
+```{r problem 1a}
+heart %>% 
+  select(age, cigsPerDay, totChol, sysBP, diaBP, BMI, heartRate, glucose) %>%
+  descr(stats = "common", transpose = T)
+
+
+heart %>% 
+  select(male, education, currentSmoker, BPMeds, prevalentStroke, prevalentHyp, diabetes, TenYearCHD) %>%
+  freq(stats = "common", transpose = T)
+```
+
+# First Model
+```{r problem 1b}
+
+main_effect_model = glm(TenYearCHD ~ .-ID,family = binomial, data = heart)
+summary(main_effect_model)
+
+
+```
+<font size= "+3"> Good-Fit Test </font>
+```{r problem 1c}
+1 - pchisq(main_effect_model$null.deviance - main_effect_model$deviance, main_effect_model$df.null - main_effect_model$df.residual)
+
+```
+
+There is not enough evidence to conclude that this model is a good fit.
+
+
+
+
+# VIF
+```{r problem 1d}
+
+vif(main_effect_model)
+# no collinearity, all VIFs are under 5
+
+```
+There is no collinearity amongst the independent variables; all of the vif values are under 5. 
+ 
+
+
+<font size= "+3">Step-Wise</font>
+```{r problem 1e}
+intercept_only = glm(TenYearCHD ~ 1, family = binomial, data = heart)
+step(intercept_only, formula(main_effect_model),trace = 0)
+#step-wise removed education, currentSmoker, diabetes, totChol, diaBP,BMI and heartRate from the model
+
+main_effect_model2 = glm(TenYearCHD ~ age + sysBP + cigsPerDay + prevalentStroke + male + prevalentHyp + glucose + BPMeds, family = binomial, data = heart)
+```
+
+
+
+# Linearity
+```{r problem 1f}
+
+heart2 = heart %>% 
+  mutate(probs = predict(main_effect_model2, type = "response"), 
+         logit = log(probs / (1 - probs)))
+
+# check for linearity of logit vs. quantitative predictors
+par(mfrow = c(2, 2))
+plot(logit ~ age, data = heart2)
+plot(logit ~ cigsPerDay, data = heart2)
+plot(logit ~ sysBP, data = heart2)
+plot(logit ~ glucose, data = heart2)
+#all plots look linear
+
+
+```
+
+<font size= "+3">Significant Interactions</font>
+```{r problem 1g}
+
+model4 = glm(TenYearCHD ~ age + sysBP + cigsPerDay + prevalentStroke + male + prevalentHyp + glucose + BPMeds + age * male, family = binomial, data = heart)
+summary(model4) #significant
+
+
+final_model = glm(TenYearCHD ~ age + sysBP + cigsPerDay + prevalentStroke + male + prevalentHyp + glucose + BPMeds + age * male, family = binomial, data = heart)
+summary(final_model)
+
+```
+
+
+The first thing I did was run vif(model) to see check for collinearity; all of the VIF values were under 5 so there was no evidence of collinearity. Next I used step-wise to create a model with the lowest AIC score and in turn eliminate some variables. Step-wise removed education, currentSmoker, diabetes, totChol, diaBP,BMI and heartRate from the model. My current model now consisted of age, sysBP, cigsPerDay, prevalentStroke, male, prevalentHyp, glucose, and BPMeds. I then ran several models to check for interactions. I ran over two dozen interactions, the only interaction that displayed significance was age:male. My final model consists of this one interaction between age * male, and my AIC level is 1041 . Finally I checked for influential points and found there to be none. 
+
+logit(TenYearCHD) = -5.333555 + 0.049663age +  0.011979sysBP + 0.027441cigsPerDay + 14.746917prevalentStroke - 1.543098male + 0.458533prevalentHyp + 0.005376glucose + 0.838834BPMeds + 0.037550(age * male)
+
+
+<font size= "+3">Influential Points</font>
+```{r problem 1h}
+# check influential points
+plot(final_model, which = 5) #no influential points
+
+```
+
+```
