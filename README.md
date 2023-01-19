@@ -1,6 +1,6 @@
 # Cardiovascular-Disease-Study-Statistics
 
-An RStudio based analysis which provides statistical insights into a study on cardiovascular disease.
+An R based analysis which provides statistical insights into a study on cardiovascular disease.
 
 The Framingham Heart Study is a large-scale study designed to identify factors that contribute to cardiovascular disease. 
 More than 14,000 people have participated in the study since 1948.
